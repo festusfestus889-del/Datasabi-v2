@@ -41,7 +41,7 @@ with st.sidebar:
             st.session_state.active_file = name
             st.rerun()
         except:
-            st.error("Failed")
+            st.error("Failed to load")
 
 if not st.session_state.data_room:
     st.markdown("## 📊 DataSabi Pro")
