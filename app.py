@@ -4,7 +4,8 @@ import plotly.express as px
 
 st.set_page_config(page_title="DataSabi Pro - ₦2,000", page_icon="💰", layout="wide")
 
-hide_style = """<style>#MainMenu {visibility: hidden;}footer {visibility: hidden;}header {visibility: hidden;}</style>"""
+# FIXED - Keep header so you can see Data Room button
+hide_style = """<style>#MainMenu {visibility: hidden;}footer {visibility: hidden;}</style>"""
 st.markdown(hide_style, unsafe_allow_html=True)
 
 if 'data_room' not in st.session_state:
@@ -20,6 +21,7 @@ if "reference" in qp or "trxref" in qp or qp.get("paid") == "true":
 
 with st.sidebar:
     st.title("📁 Data Room")
+    st.write("Upload your data file here")
     uploaded_files = st.file_uploader("Upload CSV, Excel, ODS", type=["csv","xlsx","xls","txt","ods"], accept_multiple_files=True)
     if uploaded_files:
         for file in uploaded_files:
@@ -27,7 +29,9 @@ with st.sidebar:
                 df = pd.read_csv(file) if file.name.endswith('.csv') else pd.read_excel(file)
                 st.session_state.data_room[file.name] = df
                 st.session_state.active_file = file.name
-            except: pass
+                st.success(f"Loaded {file.name}")
+            except Exception as e:
+                st.error(f"Error {e}")
     st.divider()
     st.subheader("Upload by Link 🔗")
     link = st.text_input("Paste Google Sheet or CSV link")
@@ -41,11 +45,12 @@ with st.sidebar:
             st.session_state.active_file = name
             st.rerun()
         except:
-            st.error("Failed to load")
+            st.error("Failed to load link")
 
 if not st.session_state.data_room:
     st.markdown("## 📊 DataSabi Pro")
-    st.info("👈 Upload your file in Data Room to start")
+    st.info("👈 Open sidebar to upload - Tap top left > arrow")
+    st.write("If you don't see arrow, tap the 3 lines menu top left")
     st.stop()
 
 if st.session_state.active_file is None:
