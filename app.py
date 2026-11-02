@@ -14,7 +14,6 @@ if 'active_file' not in st.session_state:
 if 'unlocked' not in st.session_state:
     st.session_state.unlocked = False
 
-# AUTO UNLOCK WHEN PAYSTACK RETURNS
 qp = st.query_params
 if "reference" in qp or "trxref" in qp or qp.get("paid") == "true":
     st.session_state.unlocked = True
@@ -42,7 +41,7 @@ with st.sidebar:
             st.session_state.active_file = name
             st.rerun()
         except:
-            st.error("Failed to load link")
+            st.error("Failed")
 
 if not st.session_state.data_room:
     st.markdown("## 📊 DataSabi Pro")
@@ -90,7 +89,6 @@ with tab3:
         """, unsafe_allow_html=True)
         st.write("")
         st.link_button("💳 PAY ₦2,000 - REAL LINK - CLICK HERE", "https://paystack.shop/pay/2jji7vgoln", use_container_width=True)
-        st.caption("This is your real link from yesterday. No more fake. Money goes to you.")
         if st.button("🧪 Demo Unlock"):
             st.session_state.unlocked = True
             st.rerun()
@@ -98,7 +96,7 @@ with tab3:
         st.success("✅ Premium Active - ₦2,000 Paid - Auto Unlocked!")
         st.balloons()
         st.write(f"Total rows: {len(df)}")
-        st.info("Insight: Quality best at moderate temp. Sales peak weekends.")
+        st.info("Insight: Quality best at moderate temp.")
         st.success("Recommendation: Keep temp 70-80C")
         st.warning("Prescription: Calibrate daily, alert at 85C")
         st.metric("Prediction", "96% Quality Expected")
