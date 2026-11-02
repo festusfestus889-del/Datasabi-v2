@@ -2,94 +2,175 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
+import requests
 
-st.set_page_config(page_title="DataSabi - Business Intelligence", page_icon="📊", layout="wide")
+st.set_page_config(page_title="DataSabi - Data Room", page_icon="📊", layout="wide")
 
-# --- PRO STYLING ---
-st.markdown("""
-<style>
-.metric-card {background: #f8f9ff; padding: 20px; border-radius: 12px; border: 1px solid #e0e7ff;}
-.big-title {font-size: 3rem; font-weight: 800; color: #1e293b;}
-.subtitle {color: #64748b; font-size: 1.1rem;}
-</style>
-""", unsafe_allow_html=True)
+if 'data_room' not in st.session_state:
+    st.session_state.data_room = {}
+if 'active_file' not in st.session_state:
+    st.session_state.active_file = None
+if 'unlocked' not in st.session_state:
+    st.session_state.unlocked = False
 
-# --- HEADER ---
-col1, col2 = st.columns([3,1])
-with col1:
-    st.markdown('<p class="big-title">📊 DataSabi</p>', unsafe_allow_html=True)
-    st.markdown('<p class="subtitle">Professional Intelligence for Business Owners & Individuals in Africa</p>', unsafe_allow_html=True)
-with col2:
-    st.write("")
-    st.caption(f"{datetime.now().strftime('%A, %d %B %Y')}")
-
+st.markdown("## 📊 DataSabi Pro")
+st.caption("Data Room • Upload Files + Links • Table + One Chart")
 st.divider()
 
-# --- SIDEBAR ---
+# --- SIDEBAR DATA ROOM ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/1822/1822663.png", width=60)
-    st.title("DataSabi Pro")
-    user_type = st.radio("Select Workspace", ["🏢 Business Owner", "👤 Individual", "📈 Analytics"])
+    st.title("📁 Data Room")
+    
+    # 1. FILE UPLOAD
+    st.subheader("1. Upload File")
+    uploaded_files = st.file_uploader(
+        "CSV, Excel, TXT", 
+        type=["csv","xlsx","xls","txt"], 
+        accept_multiple_files=True
+    )
+    if uploaded_files:
+        for file in uploaded_files:
+            try:
+                if file.name.endswith('.csv') or file.name.endswith('.txt'):
+                    df = pd.read_csv(file)
+                else:
+                    df = pd.read_excel(file)
+                st.session_state.data_room[file.name] = df
+                st.session_state.active_file = file.name
+                st.success(f"Added {file.name}")
+            except Exception as e:
+                st.error(f"Failed {file.name}: {e}")
+
     st.divider()
-    st.info("💡 Tip: Track daily to get smart insights.")
+    
+    # 2. LINK UPLOAD - NEW!
+    st.subheader("2. Upload by Link 🔗")
+    st.caption("Paste link to CSV, Excel, Google Sheet")
+    
+    link = st.text_input("Paste data link here:", placeholder="https://.../data.csv")
+    link_name = st.text_input("Name for this data:", placeholder="e.g. sales_data.csv")
+    
+    if st.button("🌐 Load Data from Link"):
+        if not link:
+            st.warning("Please paste a link")
+        else:
+            try:
+                with st.spinner("Loading from link..."):
+                    # Handle Google Sheets link conversion
+                    if "docs.google.com/spreadsheets" in link:
+                        # Convert to export csv link
+                        if "/edit" in link:
+                            link = link.split("/edit")[0] + "/export?format=csv"
+                    
+                    if link.endswith('.csv') or 'csv' in link or 'docs.google' in link:
+                        df = pd.read_csv(link)
+                    else:
+                        df = pd.read_excel(link)
+                    
+                    name = link_name if link_name else f"link_data_{len(st.session_state.data_room)+1}.csv"
+                    if not name.endswith(('.csv','.xlsx')):
+                        name += ".csv"
+                    
+                    st.session_state.data_room[name] = df
+                    st.session_state.active_file = name
+                    st.success(f"Loaded {name} - {len(df)} rows")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Failed to load link: {e}")
+                st.info("Tip: For Google Sheets, make it 'Anyone with link can view' then paste link")
 
-# --- BUSINESS OWNER - PRO DASHBOARD ---
-if user_type == "🏢 Business Owner":
-    st.subheader("Business Performance Dashboard")
+    st.divider()
+    st.subheader(f"Files in Room ({len(st.session_state.data_room)})")
     
-    c1, c2, c3, c4 = st.columns(4)
-    sales = c1.number_input("Total Sales Today (₦)", value=50000)
-    expenses = c2.number_input("Total Expenses (₦)", value=20000)
-    customers = c3.number_input("Customers Today", value=25)
-    target = c4.number_input("Daily Target (₦)", value=60000)
-    
-    profit = sales - expenses
-    margin = (profit/sales*100) if sales>0 else 0
-    progress = min(sales/target*100, 100) if target>0 else 0
-    
-    st.write("")
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Revenue", f"₦{sales:,}", f"{progress:.0f}% of target")
-    k2.metric("Profit", f"₦{profit:,}", f"{margin:.1f}% margin")
-    k3.metric("Customers", f"{customers}", "Today")
-    k4.metric("Health", "✅ Good" if profit>0 else "⚠️ Review", "Business")
+    if st.session_state.data_room:
+        for name in list(st.session_state.data_room.keys()):
+            col1, col2 = st.columns([4,1])
+            is_active = st.session_state.active_file == name
+            if col1.button(f"{'🟢 ' if is_active else '📄 '}{name}", key=f"sel_{name}", use_container_width=True):
+                st.session_state.active_file = name
+                st.rerun()
+            if col2.button("❌", key=f"del_{name}"):
+                del st.session_state.data_room[name]
+                if st.session_state.active_file == name:
+                    st.session_state.active_file = None
+                st.rerun()
+        
+        if st.button("Clear Entire Room"):
+            st.session_state.data_room = {}
+            st.session_state.active_file = None
+            st.rerun()
+    else:
+        st.info("Room empty")
+        if st.button("Load Demo Data"):
+            demo = pd.DataFrame({
+                "Date": pd.date_range("2026-10-20", periods=12),
+                "Sales": [45000,52000,38000,62000,58000,71000,49000,68000,72000,65000,80000,82000],
+                "Expenses": [20000,22000,18000,25000,23000,28000,21000,27000,30000,26000,32000,35000],
+                "Customers": [20,25,18,30,28,35,22,32,34,31,38,40],
+                "Source_Link": ["https://example.com/data.csv"]*12
+            })
+            st.session_state.data_room["demo_business.csv"] = demo
+            st.session_state.active_file = "demo_business.csv"
+            st.rerun()
 
-    # Chart
-    df = pd.DataFrame({
-        "Category": ["Sales", "Expenses", "Profit"],
-        "Amount": [sales, expenses, profit]
-    })
-    fig = px.bar(df, x="Category", y="Amount", color="Category", text_auto=True, color_discrete_map={"Sales":"#4f46e5","Expenses":"#ef4444","Profit":"#10b981"})
-    fig.update_layout(showlegend=False, height=350)
-    st.plotly_chart(fig, use_container_width=True)
-    
-    if st.button("Generate Business Insight →"):
-        st.success(f"Insight: Your profit margin is {margin:.1f}%. {'Focus on increasing customers to hit your ₦{target:,} target.' if sales < target else 'Excellent! You exceeded your target.'}")
+# --- MAIN ---
+if not st.session_state.data_room:
+    st.info("👈 Go to Data Room: Upload file OR paste link to CSV/Excel/Google Sheet")
+    st.markdown("""
+    **How to use Link:**
+    - Direct CSV link: `https://example.com/sales.csv`
+    - Google Sheets: Share > Anyone with link > Paste link here
+    - Excel link: `https://example.com/data.xlsx`
+    """)
+    st.stop()
 
-# --- INDIVIDUAL - PRO ---
-elif user_type == "👤 Individual":
-    st.subheader("Personal Wealth Dashboard")
-    
-    c1, c2 = st.columns(2)
-    income = c1.number_input("Monthly Income (₦)", value=150000)
-    spend = c2.number_input("Total Spending (₦)", value=95000)
-    
-    savings = income - spend
-    rate = (savings/income*100) if income>0 else 0
-    
-    k1, k2, k3 = st.columns(3)
-    k1.metric("Savings", f"₦{savings:,}")
-    k2.metric("Savings Rate", f"{rate:.1f}%")
-    k3.metric("Status", "💰 Wealth Builder" if rate>30 else "📊 Needs Plan")
-    
-    df2 = pd.DataFrame({"Type": ["Income", "Spending", "Savings"], "Amount": [income, spend, savings]})
-    fig2 = px.pie(df2, values="Amount", names="Type", hole=0.5, color_discrete_sequence=["#4f46e5","#ef4444","#10b981"])
-    st.plotly_chart(fig2, use_container_width=True)
+if st.session_state.active_file is None:
+    st.session_state.active_file = list(st.session_state.data_room.keys())[0]
 
-else:
-    st.subheader("Analytics & Growth")
-    st.write("Coming soon: Trends, weekly reports, and export to Excel.")
-    st.bar_chart({"Mon": [20], "Tue": [35], "Wed": [30], "Thu": [50], "Fri": [45]})
+df = st.session_state.data_room[st.session_state.active_file]
+
+st.subheader(f"📄 Active: {st.session_state.active_file}")
+st.caption(f"{len(df)} rows × {len(df.columns)} columns | Source includes link if uploaded by link")
+
+# 1. TABLE - SHOW RAW DATA WITH LINK COLUMN
+st.markdown("### 1. Raw Data Table (with source link if any)")
+st.dataframe(df, use_container_width=True, height=380)
+
+# Show download + link info
+c1, c2 = st.columns(2)
+with c1:
+    st.download_button("📥 Download CSV", df.to_csv(index=False), f"{st.session_state.active_file}.csv")
+with c2:
+    if st.button("🔗 Copy Data Room Link"):
+        st.info("Share your Streamlit app link - Data Room keeps files in session")
 
 st.divider()
-st.caption("DataSabi Pro • Built for Business Owners & Individuals • Port Harcourt, NG")
+
+# 2. ONE CHART ONLY
+st.markdown("### 2. Visualization (One Chart)")
+numeric_cols = df.select_dtypes(include='number').columns.tolist()
+all_cols = df.columns.tolist()
+
+if numeric_cols:
+    c1, c2, c3 = st.columns(3)
+    x_axis = c1.selectbox("X-Axis", all_cols, index=0)
+    y_axis = c2.selectbox("Y-Axis", numeric_cols, index=0)
+    chart_type = c3.selectbox("Chart Type", ["Bar", "Line", "Pie", "Scatter", "Area"])
+    
+    if chart_type == "Bar":
+        fig = px.bar(df, x=x_axis, y=y_axis)
+    elif chart_type == "Line":
+        fig = px.line(df, x=x_axis, y=y_axis, markers=True)
+    elif chart_type == "Pie":
+        fig = px.pie(df, names=x_axis, values=y_axis, hole=0.4)
+    elif chart_type == "Scatter":
+        fig = px.scatter(df, x=x_axis, y=y_axis)
+    else:
+        fig = px.area(df, x=x_axis, y=y_axis)
+    
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No numeric columns for chart")
+
+st.divider()
+st.caption("DataSabi • Data Room supports File Upload + Link Upload • Raw data always includes source")
