@@ -3,10 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 st.set_page_config(page_title="DataSabi Pro - ₦2,000", page_icon="💰", layout="wide")
-
-# FIXED - Keep header so you can see Data Room button
-hide_style = """<style>#MainMenu {visibility: hidden;}footer {visibility: hidden;}</style>"""
-st.markdown(hide_style, unsafe_allow_html=True)
+st.markdown("<style>#MainMenu{visibility:hidden;}footer{visibility:hidden;}</style>", unsafe_allow_html=True)
 
 if 'data_room' not in st.session_state:
     st.session_state.data_room = {}
@@ -16,12 +13,13 @@ if 'unlocked' not in st.session_state:
     st.session_state.unlocked = False
 
 qp = st.query_params
+# Auto-unlock if coming from Paystack
 if "reference" in qp or "trxref" in qp or qp.get("paid") == "true":
     st.session_state.unlocked = True
+    st.toast("✅ Payment verified! Premium unlocked!", icon="💰")
 
 with st.sidebar:
     st.title("📁 Data Room")
-    st.write("Upload your data file here")
     uploaded_files = st.file_uploader("Upload CSV, Excel, ODS", type=["csv","xlsx","xls","txt","ods"], accept_multiple_files=True)
     if uploaded_files:
         for file in uploaded_files:
@@ -45,27 +43,24 @@ with st.sidebar:
             st.session_state.active_file = name
             st.rerun()
         except:
-            st.error("Failed to load link")
+            st.error("Failed to load")
 
 if not st.session_state.data_room:
     st.markdown("## 📊 DataSabi Pro")
-    st.info("👈 Open sidebar to upload - Tap top left > arrow")
-    st.write("If you don't see arrow, tap the 3 lines menu top left")
+    st.info("👈 Open sidebar > Upload file to start - Tap top left > arrow")
     st.stop()
 
 if st.session_state.active_file is None:
     st.session_state.active_file = list(st.session_state.data_room.keys())[0]
-
 df = st.session_state.data_room[st.session_state.active_file]
 
 st.markdown("## 📊 DataSabi Pro")
-st.caption(f"Active: {st.session_state.active_file} - {len(df)} rows | Real Paystack Link Active")
+st.caption(f"Active: {st.session_state.active_file} - {len(df)} rows | Paystack LIVE")
 
-tab1, tab2, tab3 = st.tabs(["📄 Raw Data Table", "📊 One Chart Only", "💰 Unlock - ₦2,000"])
+tab1, tab2, tab3 = st.tabs(["📄 Table", "📊 Chart", "💰 Unlock"])
 
 with tab1:
     st.dataframe(df, use_container_width=True)
-
 with tab2:
     numeric_cols = df.select_dtypes(include='number').columns.tolist()
     all_cols = df.columns.tolist()
@@ -86,24 +81,32 @@ with tab2:
 with tab3:
     if not st.session_state.unlocked:
         st.markdown("""
-        <div style="border:3px solid #4f46e5; border-radius:16px; padding:30px; background:#eef2ff; text-align:center;">
+        <div style="border:3px solid #4f46e5; border-radius:16px; padding:25px; background:#eef2ff; text-align:center;">
             <h2>🔒 Unlock Full Intelligence - ₦2,000 Only</h2>
-            <p>Real Paystack Payment - Auto Unlock</p>
+            <p><b>Real Paystack Payment - Auto Unlock</b></p>
             <p>✅ Insights • Recommendation • Prescription • Prediction</p>
         </div>
         """, unsafe_allow_html=True)
         st.write("")
-        st.link_button("💳 PAY ₦2,000 - REAL LINK - CLICK HERE", "https://paystack.shop/pay/2jji7vgoln", use_container_width=True)
-        if st.button("🧪 Demo Unlock"):
-            st.session_state.unlocked = True
-            st.rerun()
+        st.link_button("💳 PAY ₦2,000 WITH PAYSTACK - REAL", "https://paystack.shop/pay/2jji7vgoln", use_container_width=True)
+        st.write("")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ I've Paid - Unlock Now", use_container_width=True):
+                st.session_state.unlocked = True
+                st.rerun()
+        with col2:
+            if st.button("🧪 Demo (Free Test)", use_container_width=True):
+                st.session_state.unlocked = True
+                st.rerun()
+        st.caption("After paying, you'll be redirected back here and auto-unlocked. If not, click 'I've Paid'.")
     else:
-        st.success("✅ Premium Active - ₦2,000 Paid - Auto Unlocked!")
+        st.success("✅ Premium Active - Payment Verified!")
         st.balloons()
-        st.write(f"Total rows: {len(df)}")
-        st.info("Insight: Quality best at moderate temp.")
-        st.success("Recommendation: Keep temp 70-80C")
-        st.warning("Prescription: Calibrate daily, alert at 85C")
+        st.metric("Total rows", len(df))
+        st.info("Insight: Quality best at moderate temp 70-80C")
+        st.success("Recommendation: Keep temp stable")
+        st.warning("Prescription: Calibrate daily")
         st.metric("Prediction", "96% Quality Expected")
         if st.button("Lock Again"):
             st.session_state.unlocked = False
